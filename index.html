@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pentris</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        .game-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #333;
+            background-color: #fff;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-rows: repeat(20, 20px);
+            grid-template-columns: repeat(10, 20px);
+            gap: 1px;
+            background-color: #333;
+        }
+
+        .cell {
+            width: 20px;
+            height: 20px;
+            background-color: #fff;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-board" id="gameBoard"></div>
+    </div>
+    <div class="controls">
+        <button id="leftBtn">Left</button>
+        <button id="rotateBtn">Rotate</button>
+        <button id="rightBtn">Right</button>
+        <button id="downBtn">Down</button>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameBoard = document.getElementById('gameBoard');
+            const leftBtn = document.getElementById('leftBtn');
+            const rotateBtn = document.getElementById('rotateBtn');
+            const rightBtn = document.getElementById('rightBtn');
+            const downBtn = document.getElementById('downBtn');
+
+            const ROWS = 20;
+            const COLS = 10;
+            const board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+
+            const pieces = [
+                { shape: [[1, 1, 1, 1, 1]], color: '#333' }, // I
+                { shape: [[1, 1], [1, 1], [1, 0]], color: '#f00' }, // P
+                { shape: [[1, 1, 1], [0, 1, 0], [0, 1, 0]], color: '#0f0' }, // T
+                { shape: [[1, 1, 1], [1, 1, 0]], color: '#00f' }, // L
+                { shape: [[1, 1], [1, 0], [1, 1]], color: '#ff0' }, // U
+                { shape: [[1, 1, 1], [1, 0, 1]], color: '#f0f' }, // W
+                { shape: [[1, 1, 1], [0, 1, 1]], color: '#0ff' }, // Z
+                { shape: [[1, 1, 0], [0, 1, 1]], color: '#800080' }, // S
+                // Add more pentomino shapes here
+            ];
+
+            let currentPiece = getRandomPiece();
+            let gameInterval;
+
+            function createBoard() {
+                for (let y = 0; y < ROWS; y++) {
+                    for (let x = 0; x < COLS; x++) {
+                        const div = document.createElement('div');
+                        div.classList.add('cell');
+                        gameBoard.appendChild(div);
+                    }
+                }
+            }
+
+            function drawBoard() {
+                const cells = document.querySelectorAll('.cell');
+                cells.forEach((cell, index) => {
+                    const x = index % COLS;
+                    const y = Math.floor(index / COLS);
+                    cell.style.backgroundColor = board[y][x] ? board[y][x] : '#fff';
+                });
+
+                currentPiece.shape.forEach((row, dy) => {
+                    row.forEach((value, dx) => {
+                        if (value) {
+                            const x = currentPiece.x + dx;
+                            const y = currentPiece.y + dy;
+                            if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
+                                const index = y * COLS + x;
+                                cells[index].style.backgroundColor = currentPiece.color;
+                            }
+                        }
+                    });
+                });
+            }
+
+            function movePiece(dx, dy) {
+                if (!isCollision(currentPiece.shape, currentPiece.x + dx, currentPiece.y + dy)) {
+                    currentPiece.x += dx;
+                    currentPiece.y += dy;
+                    drawBoard();
+                }
+            }
+
+            function rotatePiece() {
+                const shape = currentPiece.shape;
+                const newShape = shape[0].map((_, i) => shape.map(row => row[i]).reverse());
+                if (!isCollision(newShape, currentPiece.x, currentPiece.y)) {
+                    currentPiece.shape = newShape;
+                    drawBoard();
+                }
+            }
+
+            function isCollision(shape, offsetX, offsetY) {
+                for (let y = 0; y < shape.length; y++) {
+                    for (let x = 0; x < shape[y].length; x++) {
+                        if (shape[y][x]) {
+                            const newX = x + offsetX;
+                            const newY = y + offsetY;
+                            if (newX < 0 || newX >= COLS || newY >= ROWS || (newY >= 0 && board[newY][newX])) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            function getRandomPiece() {
+                const piece = pieces[Math.floor(Math.random() * pieces.length)];
+                return { ...piece, x: Math.floor(COLS / 2) - Math.floor(piece.shape[0].length / 2), y: 0 };
+            }
+
+            function placePiece() {
+                currentPiece.shape.forEach((row, dy) => {
+                    row.forEach((value, dx) => {
+                        if (value) {
+                            const x = currentPiece.x + dx;
+                            const y = currentPiece.y + dy;
+                            if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
+                                board[y][x] = currentPiece.color;
+                            }
+                        }
+                    });
+                });
+            }
+
+            function clearLines() {
+                for (let y = ROWS - 1; y >= 0; y--) {
+                    if (board[y].every(cell => cell)) {
+                        board.splice(y, 1);
+                        board.unshift(Array(COLS).fill(0));
+                    }
+                }
+            }
+
+            function gameOver() {
+                clearInterval(gameInterval);
+                alert('Game Over');
+            }
+
+            function gameLoop() {
+                if (isCollision(currentPiece.shape, currentPiece.x, currentPiece.y + 1)) {
+                    placePiece();
+                    clearLines();
+                    currentPiece = getRandomPiece();
+                    if (isCollision(currentPiece.shape, currentPiece.x, currentPiece.y)) {
+                        gameOver();
+                    }
+                } else {
+                    currentPiece.y++;
+                }
+                drawBoard();
+            }
+
+            leftBtn.addEventListener('click', () => movePiece(-1, 0));
+            rightBtn.addEventListener('click', () => movePiece(1, 0));
+            downBtn.addEventListener('click', () => movePiece(0, 1));
+            rotateBtn.addEventListener('click', rotatePiece);
+
+            createBoard();
+            drawBoard();
+            gameInterval = setInterval(gameLoop, 1000);
+        });
+    </script>
+</body>
+</html>
